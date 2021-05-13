@@ -1,28 +1,28 @@
-// @ts-check
-const express = require("express")
-const { Server } = require("socket.io")
-const http = require("http")
+import express from "express"
+import { Server } from "socket.io"
+import http from "http"
 
-const common = require("./utils/common")
-const config = common.config()
+import config from "./utils/common"
+
+const {CLIENT_URL} = config()
 
 const app = express()
 const server = http.createServer(app)
 
 const io = new Server(server, {
   cors: {
-    origin: config.CLIENT_URL,
+    origin: CLIENT_URL,
     methods: ["GET", "POST"],
   },
 })
 
-const formatMessage = require("./utils/messages")
-const {
+import formatMessage from "./utils/messages"
+import {
   addUser,
   removeUser,
   getUser,
   getUsersInRoom,
-} = require("./utils/users")
+} from "./utils/users"
 
 const PORT = process.env.PORT || 5000
 
@@ -32,7 +32,7 @@ io.on("connection", (socket) => {
   socket.on("join", ({ name, room }, callback) => {
     const { error, user } = addUser({ id: socket.id, name, room })
 
-    if (error) return callback(error)
+    if (error || !user) return callback(error)
 
     socket.join(user.room)
 
@@ -52,14 +52,19 @@ io.on("connection", (socket) => {
     callback()
   })
 
-  socket.on("sendMessage", (msg) => {
+  socket.on("sendMessage", (msg: string, callback) => {
     const user = getUser(socket.id)
+
+    if(!user) return callback({ error: 'Username and room are required.' })
 
     io.to(user.room).emit("message", formatMessage(user.name, msg))
   })
   socket.on("disconnect", () => {
+
     console.log("User disconnected")
+
     const user = removeUser(socket.id)
+
     if (user) {
       io.to(user.room).emit(
         "message",
@@ -73,6 +78,6 @@ io.on("connection", (socket) => {
   })
 })
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
-})
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`)
+
+)
